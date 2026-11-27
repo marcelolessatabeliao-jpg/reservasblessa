@@ -934,6 +934,73 @@ const SocioPortal: React.FC = () => {
   };
 
   const [uploadingVehicleSticker, setUploadingVehicleSticker] = useState(false);
+  const [vehiclePlateInput, setVehiclePlateInput] = useState('');
+  const [vehicleModelInput, setVehicleModelInput] = useState('');
+  const [vehicleColorInput, setVehicleColorInput] = useState('');
+  const [isSavingVehicle, setIsSavingVehicle] = useState(false);
+
+  useEffect(() => {
+    if (!subscription) return;
+    setVehiclePlateInput(subscription.vehiclePlate || '');
+    setVehicleModelInput(subscription.vehicleModel || '');
+    setVehicleColorInput(subscription.vehicleColor || '');
+  }, [subscription?.id, subscription?.vehiclePlate, subscription?.vehicleModel, subscription?.vehicleColor]);
+
+  const handleSaveVehicleData = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!subscription || !state) return;
+
+    const cleanPlate = vehiclePlateInput.trim().toUpperCase();
+    const cleanModel = vehicleModelInput.trim();
+    const cleanColor = vehicleColorInput.trim();
+
+    if (!cleanPlate || !cleanModel || !cleanColor) {
+      toast({
+        title: 'Preencha todos os dados do veículo',
+        description: 'Informe a placa, o modelo e a cor do veículo para conferência com a foto.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSavingVehicle(true);
+    try {
+      const updatedSub: ClubSubscription = {
+        ...subscription,
+        vehiclePlate: cleanPlate,
+        vehicleModel: cleanModel,
+        vehicleColor: cleanColor,
+        updatedAt: new Date().toISOString(),
+        isModifiedFromSeed: true,
+      };
+      const nextState: ClubDatabaseState = {
+        ...state,
+        subscriptions: state.subscriptions.map((s) =>
+          s.id === updatedSub.id ? updatedSub : s
+        ),
+        lastSyncTimestamp: new Date().toISOString(),
+      };
+      const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+      if (permCode) {
+        await saveMemberPermanentDocs(permCode, updatedSub, 'VEHICLE_DATA_UPDATE');
+      }
+      const saved = await saveClubState(nextState, { waitForCloud: true });
+      setState(saved);
+      setSubscription(updatedSub);
+      toast({
+        title: 'Dados do veículo salvos com sucesso!',
+        description: `${cleanModel} • Cor: ${cleanColor} • Placa: ${cleanPlate}`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar dados do veículo',
+        description: err?.message || 'Não foi possível salvar os dados do carro. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingVehicle(false);
+    }
+  };
 
   const handleUploadVehicleStickerPhoto = async (file: File) => {
     if (!subscription || !state) return;
@@ -944,10 +1011,14 @@ const SocioPortal: React.FC = () => {
         : await fileToDataUrl(file);
       const updatedSub: ClubSubscription = {
         ...subscription,
+        vehiclePlate: vehiclePlateInput.trim().toUpperCase() || subscription.vehiclePlate,
+        vehicleModel: vehicleModelInput.trim() || subscription.vehicleModel,
+        vehicleColor: vehicleColorInput.trim() || subscription.vehicleColor,
         vehicleStickerPhotoUrl: dataUrl,
         vehicleStickerPhotoName: file.name,
         vehicleStickerStatus: 'PENDENTE',
         updatedAt: new Date().toISOString(),
+        isModifiedFromSeed: true,
       };
       const nextState: ClubDatabaseState = {
         ...state,
@@ -956,7 +1027,11 @@ const SocioPortal: React.FC = () => {
         ),
         lastSyncTimestamp: new Date().toISOString(),
       };
-      const saved = await saveClubState(nextState);
+      const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+      if (permCode) {
+        await saveMemberPermanentDocs(permCode, updatedSub, 'VEHICLE_STICKER_UPLOAD');
+      }
+      const saved = await saveClubState(nextState, { waitForCloud: true });
       setState(saved);
       setSubscription(updatedSub);
       toast({
@@ -3240,11 +3315,16 @@ const SocioPortal: React.FC = () => {
                       if (!isFamily) return null;
 
                       const hasSticker = !!subscription.vehicleStickerPhotoUrl;
+                      const hasAllVehicleFields = Boolean(
+                        (subscription.vehiclePlate || '').trim() &&
+                        (subscription.vehicleModel || '').trim() &&
+                        (subscription.vehicleColor || '').trim()
+                      );
 
                       return (
                         <div
-                          className={`rounded-2xl border-2 p-4 sm:p-5 space-y-3 ${
-                            !hasSticker
+                          className={`rounded-2xl border-2 p-4 sm:p-5 space-y-4 ${
+                            !hasSticker || !hasAllVehicleFields
                               ? 'border-amber-400 bg-amber-50/70'
                               : 'border-emerald-200 bg-emerald-50/40'
                           }`}
@@ -3253,10 +3333,10 @@ const SocioPortal: React.FC = () => {
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Badge className="bg-amber-800 text-white font-black text-xs">
-                                  🚗 VEÍCULO DO TITULAR
+                                  🚗 VEÍCULO DO TITULAR (LESSA FAMILY)
                                 </Badge>
                                 <span className="font-black text-sm text-slate-900">
-                                  {subscription.vehicleBrand || ''} {subscription.vehicleModel || 'Veículo Cadastrado'}
+                                  {subscription.vehicleBrand || ''} {subscription.vehicleModel || 'Veículo não informado'}
                                 </span>
                                 {subscription.vehiclePlate && (
                                   <Badge variant="outline" className="font-mono font-bold text-xs bg-white">
@@ -3265,7 +3345,7 @@ const SocioPortal: React.FC = () => {
                                 )}
                                 {subscription.vehicleColor && (
                                   <span className="text-xs text-slate-600">
-                                    Cor: {subscription.vehicleColor}
+                                    Cor: <strong>{subscription.vehicleColor}</strong>
                                   </span>
                                 )}
                                 {hasSticker ? (
@@ -3277,15 +3357,20 @@ const SocioPortal: React.FC = () => {
                                     ⚠️ FOTO DO CARRO ADESIVADO OBRIGATÓRIA PENDENTE
                                   </Badge>
                                 )}
+                                {!hasAllVehicleFields && (
+                                  <Badge className="bg-amber-600 text-white text-[10px] font-black">
+                                    ⚠️ PREENCHER DADOS DO VEÍCULO
+                                  </Badge>
+                                )}
                               </div>
-                              <p className="text-xs text-slate-600 mt-1">
-                                O Plano Lessa Family exige a comprovação do veículo adesivado para ativação do titular e seus dependentes.
+                              <p className="text-xs text-slate-700 mt-1.5 leading-relaxed">
+                                O Plano <strong>Lessa Family</strong> exige a <strong>foto atualizada do carro adesivado</strong> pegando <strong>toda a traseira do veículo, o vidro com o adesivo e a placa legível</strong>, além do preenchimento dos dados abaixo (placa, cor e modelo) para conferência.
                               </p>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                              <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-xs font-black cursor-pointer shadow-sm">
-                                <Camera className="w-3.5 h-3.5" />
+                            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0">
+                              <label className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-xs font-black cursor-pointer shadow-sm flex-1 sm:flex-none">
+                                <Camera className="w-3.5 h-3.5 shrink-0" />
                                 Câmera
                                 <input
                                   type="file"
@@ -3299,9 +3384,9 @@ const SocioPortal: React.FC = () => {
                                   }}
                                 />
                               </label>
-                              <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-900 text-xs font-black cursor-pointer shadow-sm">
-                                <Upload className="w-3.5 h-3.5" />
-                                {uploadingVehicleSticker ? 'Enviando...' : hasSticker ? 'Substituir Foto' : 'Enviar Foto do Carro'}
+                              <label className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-900 text-xs font-black cursor-pointer shadow-sm flex-1 sm:flex-none">
+                                <Upload className="w-3.5 h-3.5 shrink-0" />
+                                {uploadingVehicleSticker ? 'Enviando...' : hasSticker ? 'Renovar Foto' : 'Enviar Foto do Carro'}
                                 <input
                                   type="file"
                                   accept="image/*"
@@ -3316,8 +3401,65 @@ const SocioPortal: React.FC = () => {
                             </div>
                           </div>
 
+                          {/* CAMPOS EDITÁVEIS DOS DADOS DO VEÍCULO PARA CONFERÊNCIA COM A FOTO */}
+                          <form
+                            onSubmit={handleSaveVehicleData}
+                            className="bg-white rounded-xl border border-amber-200 p-3.5 space-y-3"
+                          >
+                            <div className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                              Dados do Veículo (para conferência com a foto)
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-bold text-slate-700 block">
+                                  Placa do Veículo *
+                                </label>
+                                <Input
+                                  value={vehiclePlateInput}
+                                  onChange={(e) => setVehiclePlateInput(e.target.value.toUpperCase())}
+                                  placeholder="Ex: ABC-1D23"
+                                  maxLength={10}
+                                  className="h-10 bg-slate-50 border-slate-300 text-xs font-mono font-bold uppercase"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-bold text-slate-700 block">
+                                  Modelo do Veículo *
+                                </label>
+                                <Input
+                                  value={vehicleModelInput}
+                                  onChange={(e) => setVehicleModelInput(e.target.value)}
+                                  placeholder="Ex: Hilux, Corolla, Gol..."
+                                  className="h-10 bg-slate-50 border-slate-300 text-xs font-semibold"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-bold text-slate-700 block">
+                                  Cor do Veículo *
+                                </label>
+                                <Input
+                                  value={vehicleColorInput}
+                                  onChange={(e) => setVehicleColorInput(e.target.value)}
+                                  placeholder="Ex: Branco, Prata, Preto..."
+                                  className="h-10 bg-slate-50 border-slate-300 text-xs font-semibold"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-end">
+                              <Button
+                                type="submit"
+                                size="sm"
+                                disabled={isSavingVehicle}
+                                className="bg-amber-700 hover:bg-amber-800 text-white font-black text-xs h-9 px-4 rounded-xl w-full sm:w-auto cursor-pointer"
+                              >
+                                <Save className="w-3.5 h-3.5 mr-1.5" />
+                                {isSavingVehicle ? 'Salvando...' : 'Salvar Dados do Carro'}
+                              </Button>
+                            </div>
+                          </form>
+
                           {subscription.vehicleStickerPhotoUrl && (
-                            <div className="pt-2">
+                            <div className="pt-1">
                               <div className="text-xs font-bold text-slate-700 mb-1.5">Foto do veículo cadastrada:</div>
                               <div
                                 onClick={() =>
@@ -3327,7 +3469,7 @@ const SocioPortal: React.FC = () => {
                                     mimeType: 'image/jpeg',
                                   })
                                 }
-                                className="w-36 h-24 rounded-xl border border-slate-300 overflow-hidden cursor-pointer hover:opacity-90 relative group shadow-xs"
+                                className="w-40 h-28 rounded-xl border border-slate-300 overflow-hidden cursor-pointer hover:opacity-90 relative group shadow-xs"
                               >
                                 <img
                                   src={subscription.vehicleStickerPhotoUrl}
@@ -4551,6 +4693,86 @@ const SocioPortal: React.FC = () => {
                       </Button>
                     </div>
                   </form>
+
+                  {/* Formulário editável de Dados do Veículo (Lessa Family) */}
+                  {(subscription.contractType === 'FAMILY_PUBLICIDADE' ||
+                    (subscription.planSummaryLabel && /family|adesiv|publicidade/i.test(subscription.planSummaryLabel))) && (
+                    <form
+                      onSubmit={handleSaveVehicleData}
+                      className="rounded-2xl border-2 border-amber-300 bg-amber-50/50 p-4 sm:p-5 space-y-4"
+                    >
+                      <div className="space-y-0.5">
+                        <h4 className="text-sm font-black text-amber-950">
+                          🚗 Dados do Veículo Adesivado (Lessa Family)
+                        </h4>
+                        <p className="text-xs text-amber-900/90">
+                          Preencha a <strong>placa</strong>, <strong>cor</strong> e <strong>modelo</strong> do carro para conferência com a foto da traseira adesivada (enviada na aba <strong>Documentos</strong>).
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-800 block">
+                            Placa do Veículo *
+                          </label>
+                          <Input
+                            value={vehiclePlateInput}
+                            onChange={(e) => setVehiclePlateInput(e.target.value.toUpperCase())}
+                            placeholder="Ex: ABC-1D23"
+                            maxLength={10}
+                            className="h-11 bg-white border-amber-300 text-sm font-mono font-bold uppercase"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-800 block">
+                            Modelo do Veículo *
+                          </label>
+                          <Input
+                            value={vehicleModelInput}
+                            onChange={(e) => setVehicleModelInput(e.target.value)}
+                            placeholder="Ex: Hilux, Corolla, Gol..."
+                            className="h-11 bg-white border-amber-300 text-sm font-medium"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-800 block">
+                            Cor do Veículo *
+                          </label>
+                          <Input
+                            value={vehicleColorInput}
+                            onChange={(e) => setVehicleColorInput(e.target.value)}
+                            placeholder="Ex: Branco, Prata, Preto..."
+                            className="h-11 bg-white border-amber-300 text-sm font-medium"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setActivePortalTab('documentos');
+                            if (typeof window !== 'undefined') {
+                              sessionStorage.setItem('lessa_socio_portal_tab', 'documentos');
+                            }
+                          }}
+                          className="border-amber-400 text-amber-950 bg-white hover:bg-amber-100 font-bold text-xs h-10 px-4 rounded-xl cursor-pointer w-full sm:w-auto"
+                        >
+                          <Camera className="w-4 h-4 mr-1.5" />
+                          {subscription.vehicleStickerPhotoUrl ? 'Renovar Foto do Carro Adesivado' : 'Enviar Foto do Carro Adesivado'}
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={isSavingVehicle}
+                          className="bg-amber-700 hover:bg-amber-800 text-white font-black text-xs h-10 px-5 rounded-xl cursor-pointer w-full sm:w-auto"
+                        >
+                          <Save className="w-4 h-4 mr-1.5" />
+                          {isSavingVehicle ? 'Salvando...' : 'Salvar Dados do Carro'}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               </TabsContent>
             </Tabs>

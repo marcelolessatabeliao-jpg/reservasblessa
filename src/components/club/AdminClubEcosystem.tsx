@@ -226,7 +226,24 @@ export interface ClubMessageTemplate {
   badge?: string;
   description: string;
   templateText: string;
+  familyTemplateText?: string;
 }
+
+export const isLessaFamilySubscription = (
+  sub?: Partial<ClubSubscription> | null
+): boolean => {
+  if (!sub) return false;
+  if (sub.contractType === 'FAMILY_PUBLICIDADE') return true;
+  if (sub.planSummaryLabel && /family|publicidade|permuta|adesiv/i.test(sub.planSummaryLabel)) {
+    return true;
+  }
+  const members = Array.isArray(sub.members) ? sub.members : [];
+  return members.some(
+    (m) =>
+      /FAMILY_PUBLICIDADE|PUBLICIDADE|ADESIV/i.test(m.modalityCode || '') ||
+      /family|publicidade|permuta|adesiv/i.test(m.modalityName || '')
+  );
+};
 
 export const CLUB_MESSAGE_TEMPLATES: ClubMessageTemplate[] = [
   {
@@ -308,12 +325,23 @@ Guarde esses dados com carinho. Qualquer dúvida, estamos à disposição!
     id: 'DOCUMENTOS_PENDENTES',
     name: '📑 Pendência de Documentos',
     badge: 'Validação',
-    description: 'Solicitação para envio de fotos 3x4 e documentos com plano e dados de acesso ao Portal.',
+    description: 'Solicitação para envio de fotos 3x4 e documentos (ou foto do carro adesivado + dados do veículo no Lessa Family).',
     templateText: `Olá, *{NOME}*!
 
 Notamos que ainda constam documentos ou fotos pendentes para emissão das carteirinhas do seu plano *{PLANO}* (Cartão #{CARTAO}).
 
 Por favor, acesse o Portal do Sócio na aba *"Documentos"* para anexá-los e liberar seu acesso ao clube:
+
+🌐 *Portal do Sócio:* https://reservas.balneariolessa.com.br/socio
+👤 *Usuário (Login):* {LOGIN}
+🔑 *Senha:* {SENHA}
+
+Qualquer dúvida, estamos à disposição!`,
+    familyTemplateText: `Olá, *{NOME}*!
+
+Para manter ativo o seu plano *{PLANO}* (Cartão #{CARTAO}), é necessária a *renovação do anexo da foto do carro adesivado* (pegando *toda a traseira do carro, o vidro com o adesivo e a placa legível*) e o *preenchimento dos dados do veículo* (*placa, cor do veículo e modelo*) no seu cadastro para conferência.
+
+Por favor, acesse o Portal do Sócio na aba *"Documentos"* (ou *"Meus Dados"*) para preencher os dados do carro e enviar a foto atualizada:
 
 🌐 *Portal do Sócio:* https://reservas.balneariolessa.com.br/socio
 👤 *Usuário (Login):* {LOGIN}
@@ -375,7 +403,17 @@ export const renderClubMessageTemplate = (
   const cartao = (sub.subscriptionCode || '').trim() || '---';
   const plano = getClubSubscriptionPlanLabel(sub);
 
-  return template
+  let effectiveTemplate = template;
+  if (isLessaFamilySubscription(sub)) {
+    const matchedFamilyTpl = CLUB_MESSAGE_TEMPLATES.find(
+      (t) => t.familyTemplateText && t.templateText === template
+    );
+    if (matchedFamilyTpl?.familyTemplateText) {
+      effectiveTemplate = matchedFamilyTpl.familyTemplateText;
+    }
+  }
+
+  return effectiveTemplate
     .replace(/\{NOME\}/g, nome)
     .replace(/\{PLANO\}/g, plano)
     .replace(/\{LOGIN\}/g, login)
