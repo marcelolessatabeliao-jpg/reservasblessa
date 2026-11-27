@@ -251,7 +251,7 @@ export function buildChaleTermsAcceptanceRecord(params: {
       language: typeof navigator !== 'undefined' ? navigator.language : 'pt-BR',
       timezone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'America/Porto_Velho',
       screenResolution: typeof window !== 'undefined' ? `${window.screen.width}x${window.screen.height}` : 'unknown',
-      origin: typeof window !== 'undefined' ? window.location.origin : 'https://reservas.balneariolessa.com.br',
+      origin: typeof window !== 'undefined' ? window.location.origin : 'https://balneariolessa.com.br',
       consentHash,
     },
   };

@@ -88,7 +88,7 @@ export function VoucherShareDialog({
   useEffect(() => {
     setImageGenerated(null);
     if (code) {
-      fetch(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`)
+      fetch(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://balneariolessa.com.br/voucher/${code}`)
         .then(res => res.blob())
         .then(blob => {
            const reader = new FileReader();
@@ -132,7 +132,7 @@ export function VoucherShareDialog({
         : E_MONEY + " *Total Pago Online (10% OFF):* " + formatCurrency(booking.total_amount) + "\n" +
           (counterQty > 0 ? "💵 *Entradas no Balcão:* " + counterQty + "x entradas a pagar na bilheteria pelo valor normal (" + formatCurrency(counterTotal) + ")\n\n" : "\n")
       ) +
-      "Voucher: https://reservas.balneariolessa.com.br/voucher/" + code + "\n\n" +
+      "Voucher: https://balneariolessa.com.br/voucher/" + code + "\n\n" +
       E_SPARK + " *Aguardamos vocês para o lazer que a sua família merece.*";
 
     const waLink = "https://api.whatsapp.com/send?phone=55" + phone + "&text=" + encodeURIComponent(message);
@@ -143,7 +143,7 @@ export function VoucherShareDialog({
 
   const handleSendLink = () => {
     const message = "Olá! Segue o link do seu voucher para o Balneário Lessa. Sua reserva está confirmada!\n" +
-      "https://reservas.balneariolessa.com.br/voucher/" + code + "\n\n" +
+      "https://balneariolessa.com.br/voucher/" + code + "\n\n" +
       "Aguardamos vocês!";
     
     const waLinkLink = "https://api.whatsapp.com/send?phone=55" + phone + "&text=" + encodeURIComponent(message);
@@ -182,7 +182,7 @@ export function VoucherShareDialog({
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 3500);
             const qrRes = await fetch(
-              `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`,
+              `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://balneariolessa.com.br/voucher/${code}`,
               { signal: controller.signal }
             );
             clearTimeout(timer);

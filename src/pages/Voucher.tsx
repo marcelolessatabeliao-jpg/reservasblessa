@@ -108,7 +108,7 @@ export default function Voucher() {
 
       const voucherCodeForQr = data?.confirmation_code || data?.id?.replace(/-/g, '').slice(0, 8).toUpperCase();
       if (voucherCodeForQr) {
-        fetch(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${voucherCodeForQr}`)
+        fetch(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://balneariolessa.com.br/voucher/${voucherCodeForQr}`)
           .then(res => res.blob())
           .then(blob => {
             const reader = new FileReader();
@@ -273,7 +273,7 @@ export default function Voucher() {
               <div className="bg-slate-50 border-2 border-slate-200/80 rounded-3xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
                 <div className="p-2.5 bg-white border-2 border-emerald-950/10 rounded-2xl shadow-sm mb-2.5">
                   <img
-                    src={qrBase64 || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${voucherDisplayCode}`}
+                    src={qrBase64 || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://balneariolessa.com.br/voucher/${voucherDisplayCode}`}
                     alt="QR Code"
                     className="w-32 h-32 md:w-36 md:h-36"
                     crossOrigin={qrBase64 ? undefined : "anonymous"}

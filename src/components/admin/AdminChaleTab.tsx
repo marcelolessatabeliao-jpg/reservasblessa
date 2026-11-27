@@ -4229,7 +4229,7 @@ export function AdminChaleTab({
 
                   <div style={{ backgroundColor: '#ffffff', padding: '6px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://reservas.balneariolessa.com.br/voucher/${voucherRes.confirmationCode || 'CHA-OK'}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://balneariolessa.com.br/voucher/${voucherRes.confirmationCode || 'CHA-OK'}`}
                       alt="QR Code do Voucher"
                       className="w-16 h-16"
                       crossOrigin="anonymous"

@@ -278,7 +278,7 @@ Adira ao *PLANO ANUAL, garanta os valores atuais por mais 12 meses e ainda **GAN
 
 Você já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:
 
-🌐 Portal do Sócio: https://reservas.balneariolessa.com.br/socio
+🌐 Portal do Sócio: https://balneariolessa.com.br/socio
 👤 Usuário (Login): {LOGIN}
 🔑 Senha: {SENHA}
 
@@ -297,7 +297,7 @@ Notamos que o seu plano *{PLANO}* (Cartão #{CARTAO}) está com mensalidade em a
 
 Você pode visualizar e regularizar suas faturas de forma rápida pelo Portal do Sócio:
 
-🌐 *Portal do Sócio:* https://reservas.balneariolessa.com.br/socio
+🌐 *Portal do Sócio:* https://balneariolessa.com.br/socio
 👤 *Usuário (Login):* {LOGIN}
 🔑 *Senha:* {SENHA}
 
@@ -314,7 +314,7 @@ Olá, *{NOME}*! Seu plano *{PLANO}* (Cartão #{CARTAO}) foi cadastrado com suces
 
 Você já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:
 
-🌐 *Portal do Sócio:* https://reservas.balneariolessa.com.br/socio
+🌐 *Portal do Sócio:* https://balneariolessa.com.br/socio
 👤 *Usuário (Login):* {LOGIN}
 🔑 *Senha:* {SENHA}
 
@@ -333,7 +333,7 @@ Notamos que ainda constam documentos ou fotos pendentes para emissão das cartei
 
 Por favor, acesse o Portal do Sócio na aba *"Documentos"* para anexá-los e liberar seu acesso ao clube:
 
-🌐 *Portal do Sócio:* https://reservas.balneariolessa.com.br/socio
+🌐 *Portal do Sócio:* https://balneariolessa.com.br/socio
 👤 *Usuário (Login):* {LOGIN}
 🔑 *Senha:* {SENHA}
 
@@ -357,7 +357,7 @@ Para manter ativo o seu plano *{PLANO}*, é necessária a *renovação do anexo 
 
 Por favor, acesse o Portal do Sócio na aba *"Documentos"* (ou *"Meus Dados"*) para preencher os dados do carro e enviar a foto atualizada:
 
-🌐 *Portal do Sócio:* https://reservas.balneariolessa.com.br/socio
+🌐 *Portal do Sócio:* https://balneariolessa.com.br/socio
 👤 *Usuário (Login):* {LOGIN}
 🔑 *Senha:* {SENHA}
 

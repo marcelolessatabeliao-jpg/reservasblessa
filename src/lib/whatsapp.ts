@@ -24,7 +24,7 @@ export function buildWhatsAppMessage(
   if (code && isPrepay) {
     msg += `\u{2705} *Confirmação:* Pago\n`;
     msg += `\u{1F3AB} *Código do Voucher:* ${code}\n`;
-    msg += `\u{1F517} *Link do Voucher:* https://reservas.balneariolessa.com.br/voucher/${code}\n`;
+    msg += `\u{1F517} *Link do Voucher:* https://balneariolessa.com.br/voucher/${code}\n`;
     msg += `\u{1F4CD} *Pré-reserva:* #${code}\n\n`;
   }
 

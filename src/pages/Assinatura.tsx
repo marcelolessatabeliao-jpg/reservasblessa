@@ -258,7 +258,7 @@ export default function Assinatura() {
             Via Araras, Setor 09 – Ariquemes/RO • Aberto Sex a Dom e Feriados das 9h às 17h
           </p>
           <div className="flex items-center gap-4">
-            <a href="https://reservas.balneariolessa.com.br/" className="hover:text-white transition-colors underline">
+            <a href="https://balneariolessa.com.br/" className="hover:text-white transition-colors underline">
               Site de Reservas
             </a>
             <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors underline">

@@ -1372,7 +1372,7 @@ export function BookingOverview({
                   {totals.total > 0 ? (
                     <Button 
                       onClick={() => {
-                        const msg = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nOlá! Minha reserva no Balneário Lessa foi confirmada! ✅\n\n📋 *RESUMO DO PEDIDO*\n👤 *Titular:* ${booking.entry.name}\n📅 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '—'}\n🔢 *Voucher:* ${persistedConfirmationCode}\n\n🔗 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n📍 *COMO CHEGAR:*\nVia Araras, Setor 09 – Ariquemes/RO`;
+                        const msg = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nOlá! Minha reserva no Balneário Lessa foi confirmada! ✅\n\n📋 *RESUMO DO PEDIDO*\n👤 *Titular:* ${booking.entry.name}\n📅 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '—'}\n🔢 *Voucher:* ${persistedConfirmationCode}\n\n🔗 *VOUCHER DIGITAL:*\nhttps://balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n📍 *COMO CHEGAR:*\nVia Araras, Setor 09 – Ariquemes/RO`;
                         const phone = booking.entry.phone?.replace(/\D/g, '') || '';
                         window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}
@@ -2018,9 +2018,9 @@ export function BookingOverview({
                         const cleanPhone = booking.entry.phone.replace(/\D/g, '');
                         const formattedPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
                         const termsNote = hasSelectedChaleBooking
-                          ? `\n*Comprovante de Aceite dos Termos de Hospedagem:*\nTermos aceitos eletronicamente por ${booking.entry.name || 'Hóspede'} em ${(chaleAcceptedAtDate || new Date()).toLocaleString('pt-BR')}. Os termos completos estão disponíveis no seu painel em https://reservas.balneariolessa.com.br/consultar\n`
+                          ? `\n*Comprovante de Aceite dos Termos de Hospedagem:*\nTermos aceitos eletronicamente por ${booking.entry.name || 'Hóspede'} em ${(chaleAcceptedAtDate || new Date()).toLocaleString('pt-BR')}. Os termos completos estão disponíveis no seu painel em https://balneariolessa.com.br/consultar\n`
                           : '';
-                        const msg = `*Reserva Balneário Lessa*\n\nOlá, ${booking.entry.name || 'Cliente'}!\n\nSegue seu código PIX para pagamento da reserva:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n${termsNote}\n*Acompanhar / Acessar Voucher e Termos:*\nConsulte a qualquer momento em: https://reservas.balneariolessa.com.br/consultar informando seu WhatsApp (${booking.entry.phone}).\n\n_Aguardamos você para um dia incrível de lazer na natureza!_`;
+                        const msg = `*Reserva Balneário Lessa*\n\nOlá, ${booking.entry.name || 'Cliente'}!\n\nSegue seu código PIX para pagamento da reserva:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n${termsNote}\n*Acompanhar / Acessar Voucher e Termos:*\nConsulte a qualquer momento em: https://balneariolessa.com.br/consultar informando seu WhatsApp (${booking.entry.phone}).\n\n_Aguardamos você para um dia incrível de lazer na natureza!_`;
                         window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}
                       className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl bg-[#075E54] hover:bg-[#05463e] text-white shadow-md transition-all active:scale-[0.98] border border-emerald-600/50 cursor-pointer"
