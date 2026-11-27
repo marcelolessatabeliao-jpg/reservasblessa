@@ -337,7 +337,20 @@ Por favor, acesse o Portal do Sócio na aba *"Documentos"* para anexá-los e lib
 🔑 *Senha:* {SENHA}
 
 Qualquer dúvida, estamos à disposição!`,
-    familyTemplateText: `Olá, *{NOME}*!
+    familyTemplateText: `🌿 *BALNEÁRIO LESSA | NOVO PORTAL DO SÓCIO!* 💚
+
+Olá, {NOME}! 🎉
+Identificamos o seu plano *{PLANO}* e temos uma novidade para você:
+
+Estamos mudando para uma plataforma *mais simples, moderna e prática!*
+
+Agora você pode:
+
+✅ Emitir suas carteirinhas digitais.
+✅ Consultar contratos e anexos.
+✅ Gerenciar todos os dependentes em um único cadastro!
+
+📢 *ATENÇÃO PARA MANTER SEU PLANO ATIVO:*
 
 Para manter ativo o seu plano *{PLANO}* (Cartão #{CARTAO}), é necessária a *renovação do anexo da foto do carro adesivado* (pegando *toda a traseira do carro, o vidro com o adesivo e a placa legível*) e o *preenchimento dos dados do veículo* (*placa, cor do veículo e modelo*) no seu cadastro para conferência.
 
@@ -347,7 +360,9 @@ Por favor, acesse o Portal do Sócio na aba *"Documentos"* (ou *"Meus Dados"*) p
 👤 *Usuário (Login):* {LOGIN}
 🔑 *Senha:* {SENHA}
 
-Qualquer dúvida, estamos à disposição!`,
+Guarde esses dados com carinho. Qualquer dúvida, estamos à disposição!
+
+🌴 *BALNEÁRIO LESSA — O JARDIM DO ÉDEN!*`,
   },
 ];
 
