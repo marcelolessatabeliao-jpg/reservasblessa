@@ -371,6 +371,11 @@ export const getClubSubscriptionPlanLabel = (
 ): string => {
   if (!sub) return 'Lessa Club';
 
+  // Lessa Family Publicidade sempre exibe o nome limpo do plano, sem "(Mensal/mês)" nem lista de dependentes
+  if (isLessaFamilySubscription(sub)) {
+    return 'Lessa Family Publicidade';
+  }
+
   const summary = (sub.planSummaryLabel || '').trim();
   const members = Array.isArray(sub.members) ? sub.members : [];
   const titular = members.find((m) => m.role === 'TITULAR') || members[0];
@@ -388,8 +393,11 @@ export const getClubSubscriptionPlanLabel = (
     baseLabel = 'Lessa Club';
   }
 
-  // Remove quantidades de pessoas/integrantes e valores do texto do plano para a mensagem
+  // Remove blocos de integrantes entre colchetes ([Titular: ... + Dependente ...]), quantidades de pessoas e valores
   baseLabel = baseLabel
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/\(\s*mensal\s*\/\s*m[eê]s\s*\)/gi, '(Mensal)')
+    .replace(/\/\s*m[eê]s\b/gi, '')
     .replace(/\(\s*\d+\s*pessoas?\s*\)/gi, '')
     .replace(/[-•–—]\s*\d+\s*pessoas?\b/gi, '')
     .replace(/\b\d+\s*pessoas?\b/gi, '')

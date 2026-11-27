@@ -6597,11 +6597,22 @@ export const getMemberAccessMessage = (sub: ClubSubscription): { message: string
   const password = getBirthDatePassword(sub.holderBirthDate);
   const portalUrl = typeof window !== 'undefined' ? `${window.location.origin}/socio` : 'https://balneariolessa.com.br/socio';
   const titular = (sub.members || []).find((m) => m.role === 'TITULAR') || (sub.members || [])[0];
-  let planLabel = (sub.planSummaryLabel || '').trim();
+  const isFamilyPlan =
+    sub.contractType === 'FAMILY_PUBLICIDADE' ||
+    (sub.planSummaryLabel && /family|publicidade|permuta|adesiv/i.test(sub.planSummaryLabel)) ||
+    (sub.members || []).some(
+      (m) =>
+        /FAMILY_PUBLICIDADE|PUBLICIDADE|ADESIV/i.test(m.modalityCode || '') ||
+        /family|publicidade|permuta|adesiv/i.test(m.modalityName || '')
+    );
+  let planLabel = isFamilyPlan ? 'Lessa Family Publicidade' : (sub.planSummaryLabel || '').trim();
   if (!planLabel || planLabel === '---') {
     planLabel = (titular?.planCycleLabel || titular?.modalityName || 'Lessa Club').trim();
   }
   planLabel = planLabel
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/\(\s*mensal\s*\/\s*m[eê]s\s*\)/gi, '(Mensal)')
+    .replace(/\/\s*m[eê]s\b/gi, '')
     .replace(/\(\s*\d+\s*pessoas?\s*\)/gi, '')
     .replace(/[-•–—]\s*\d+\s*pessoas?\b/gi, '')
     .replace(/\b\d+\s*pessoas?\b/gi, '')
