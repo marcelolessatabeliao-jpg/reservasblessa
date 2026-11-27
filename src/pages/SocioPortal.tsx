@@ -550,7 +550,7 @@ const SocioPortal: React.FC = () => {
       subscription.contractType === 'FAMILY_PUBLICIDADE' ||
       (subscription.planSummaryLabel && /family|adesiv|publicidade/i.test(subscription.planSummaryLabel));
 
-    if (isFamily) {
+    if (isFamily && !(subscription.status === 'ACTIVE' && subscription.manualStatusOverride)) {
       const hasSticker = !!subscription.vehicleStickerPhotoUrl;
       const dependents = subscription.members?.filter((m, idx) => m.role === 'DEPENDENTE' && idx > 0) || [];
       const hasAllDepDocs = dependents.length === 0 || dependents.every((d) => memberHasProofDocument(d, subscription));

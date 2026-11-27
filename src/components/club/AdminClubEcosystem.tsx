@@ -3602,56 +3602,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ? 'ACTIVE'
         : selectedSubForDetail.status || 'INACTIVE';
 
-      // Validação estrita do Plano Lessa Family:
-      // O plano é para o dono do carro e dependentes apenas cônjuge e filhos.
-      // O plano só será ativado após ter os documentos de cada dependente anexado e a foto do carro adesivado.
-      const isLessaFamily =
-        isPublicidade ||
-        selectedSubForDetail.contractType === 'FAMILY_PUBLICIDADE' ||
-        (selectedSubForDetail.planSummaryLabel && /family|adesiv/i.test(selectedSubForDetail.planSummaryLabel));
-
-      if (isLessaFamily && targetStatus === 'ACTIVE') {
-        const hasCarPhoto = Boolean(
-          editClientData.vehicleStickerPhotoUrl ||
-          selectedSubForDetail.vehicleStickerPhotoUrl ||
-          (selectedSubForDetail.attachments || []).some((a) => /carro|adesiv/i.test(a.name))
-        );
-        if (!hasCarPhoto) {
-          toast({
-            title: 'Não é possível ativar o Plano Lessa Family',
-            description: 'É obrigatório anexar a foto do carro adesivado antes de ativar o plano.',
-            variant: 'destructive',
-          });
-          setIsSavingClientRegistration(false);
-          return;
-        }
-
-        const deps = (selectedSubForDetail.members || []).filter((m) => m.role === 'DEPENDENTE');
-        const invalidKinshipDep = deps.find((m) => {
-          const k = (m.kinship || '').trim().toLowerCase();
-          return k && !k.includes('cônjuge') && !k.includes('conjuge') && !k.includes('filho') && !k.includes('filha');
-        });
-        if (invalidKinshipDep) {
-          toast({
-            title: 'Parentesco Inválido no Lessa Family',
-            description: `O dependente ${invalidKinshipDep.fullName} possui parentesco "${invalidKinshipDep.kinship}". No Plano Lessa Family apenas cônjuge e filhos são permitidos.`,
-            variant: 'destructive',
-          });
-          setIsSavingClientRegistration(false);
-          return;
-        }
-
-        const missingDocDep = deps.find((m) => !m.documentProofUrl && (!m.attachments || m.attachments.length === 0));
-        if (missingDocDep) {
-          toast({
-            title: 'RG Obrigatório do Dependente',
-            description: `O dependente ${missingDocDep.fullName} precisa do documento (RG com foto) anexado para validação e ativação do plano.`,
-            variant: 'destructive',
-          });
-          setIsSavingClientRegistration(false);
-          return;
-        }
-      }
+      // No painel Admin, o administrador tem autonomia total para salvar/liberar cadastros Lessa Family
+      // mesmo enquanto aguarda renovação da foto do carro adesivado ou documentos dos dependentes.
 
       if (isSemPlano) {
         setSituacaoLiberar('NAO');
