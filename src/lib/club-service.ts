@@ -6575,8 +6575,25 @@ export const getMemberAccessMessage = (sub: ClubSubscription): { message: string
   const loginUser = sub.holderEmail || sub.holderCpf;
   const password = getBirthDatePassword(sub.holderBirthDate);
   const portalUrl = typeof window !== 'undefined' ? `${window.location.origin}/socio` : 'https://balneariolessa.com.br/socio';
+  const titular = (sub.members || []).find((m) => m.role === 'TITULAR') || (sub.members || [])[0];
+  let planLabel = (sub.planSummaryLabel || '').trim();
+  if (!planLabel || planLabel === '---') {
+    planLabel = (titular?.planCycleLabel || titular?.modalityName || 'Lessa Club').trim();
+  }
+  const normalizedPlan = planLabel.toLowerCase();
+  if (
+    !normalizedPlan.includes('mensal') &&
+    !normalizedPlan.includes('anual') &&
+    !normalizedPlan.includes('vitalicio') &&
+    !normalizedPlan.includes('vitalício') &&
+    !normalizedPlan.includes('publicidade') &&
+    sub.paymentMethod !== 'COURTESY'
+  ) {
+    planLabel = `${planLabel} (${sub.billingCycle === 'ANNUAL' ? 'Anual' : 'Mensal'})`;
+  }
+  const cardCode = (sub.subscriptionCode || '').trim() || '---';
 
-  const message = `🌿 *BALNEÁRIO FAMÍLIA LESSA — BEM-VINDO AO LESSA CLUB!* 🌿\n\nOlá, *${sub.holderName}*! Seu plano foi cadastrado com sucesso.\n\nVocê já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:\n\n🌐 *Portal do Sócio:* ${portalUrl}\n👤 *Usuário (Login):* ${loginUser}\n🔑 *Senha:* ${password}\n\nGuarde esses dados com carinho. Qualquer dúvida, estamos à disposição!`;
+  const message = `🌿 *BALNEÁRIO FAMÍLIA LESSA — BEM-VINDO AO LESSA CLUB!* 🌿\n\nOlá, *${sub.holderName}*! Seu plano *${planLabel}* (Cartão #${cardCode}) foi cadastrado com sucesso.\n\nVocê já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:\n\n🌐 *Portal do Sócio:* ${portalUrl}\n👤 *Usuário (Login):* ${loginUser}\n🔑 *Senha:* ${password}\n\nGuarde esses dados com carinho. Qualquer dúvida, estamos à disposição!`;
 
   const phone = cleanDigits(sub.holderPhone);
   const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;

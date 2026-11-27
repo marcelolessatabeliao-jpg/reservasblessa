@@ -237,6 +237,7 @@ export const CLUB_MESSAGE_TEMPLATES: ClubMessageTemplate[] = [
     templateText: `🌿 *BALNEÁRIO LESSA | NOVO PORTAL DO SÓCIO!* 💚
 
 Olá, {NOME}! 🎉
+Identificamos o seu plano *{PLANO}* (Cartão #{CARTAO}) e temos uma novidade para você:
 
 Estamos mudando para uma plataforma *mais simples, moderna e prática!*
 
@@ -271,17 +272,27 @@ Guarde esses dados com carinho. Qualquer dúvida, estamos à disposição!
     id: 'COBRANCA_MENSALIDADE',
     name: '💳 Mensalidade em Aberto',
     badge: 'Cobrança',
-    description: 'Aviso de mensalidade pendente ou vencida para regularização rápida pelo Portal.',
-    templateText: `Olá, {NOME}! Sua carteirinha Lessa Club (#{CARTAO}) está com mensalidade em aberto. Regularize pelo Portal do Sócio: https://reservas.balneariolessa.com.br/socio`,
+    description: 'Aviso de mensalidade pendente ou vencida com plano e dados de login para regularização.',
+    templateText: `Olá, *{NOME}*!
+
+Notamos que o seu plano *{PLANO}* (Cartão #{CARTAO}) está com mensalidade em aberto.
+
+Você pode visualizar e regularizar suas faturas de forma rápida pelo Portal do Sócio:
+
+🌐 *Portal do Sócio:* https://reservas.balneariolessa.com.br/socio
+👤 *Usuário (Login):* {LOGIN}
+🔑 *Senha:* {SENHA}
+
+Caso já tenha efetuado o pagamento, desconsidere esta mensagem ou nos envie o comprovante. Qualquer dúvida, estamos à disposição!`,
   },
   {
     id: 'BOAS_VINDAS_ACESSO',
     name: '🔑 Boas-vindas & Acesso',
     badge: 'Credenciais',
-    description: 'Mensagem oficial de boas-vindas com link do portal, usuário e senha padrão.',
+    description: 'Mensagem oficial de boas-vindas com plano, link do portal, usuário e senha padrão.',
     templateText: `🌿 *BALNEÁRIO FAMÍLIA LESSA — BEM-VINDO AO LESSA CLUB!* 🌿
 
-Olá, *{NOME}*! Seu plano foi cadastrado com sucesso.
+Olá, *{NOME}*! Seu plano *{PLANO}* (Cartão #{CARTAO}) foi cadastrado com sucesso.
 
 Você já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:
 
@@ -297,12 +308,61 @@ Guarde esses dados com carinho. Qualquer dúvida, estamos à disposição!
     id: 'DOCUMENTOS_PENDENTES',
     name: '📑 Pendência de Documentos',
     badge: 'Validação',
-    description: 'Solicitação para envio de fotos 3x4 e documentos para liberação das carteirinhas.',
-    templateText: `Olá, {NOME}! Notamos que ainda constam documentos ou fotos pendentes para emissão das suas carteirinhas no Lessa Club.
+    description: 'Solicitação para envio de fotos 3x4 e documentos com plano e dados de acesso ao Portal.',
+    templateText: `Olá, *{NOME}*!
 
-Por favor, acesse o Portal do Sócio (https://reservas.balneariolessa.com.br/socio) na aba "Documentos" para anexá-los e liberar seu acesso ao clube! Qualquer dúvida, estamos à disposição.`,
+Notamos que ainda constam documentos ou fotos pendentes para emissão das carteirinhas do seu plano *{PLANO}* (Cartão #{CARTAO}).
+
+Por favor, acesse o Portal do Sócio na aba *"Documentos"* para anexá-los e liberar seu acesso ao clube:
+
+🌐 *Portal do Sócio:* https://reservas.balneariolessa.com.br/socio
+👤 *Usuário (Login):* {LOGIN}
+🔑 *Senha:* {SENHA}
+
+Qualquer dúvida, estamos à disposição!`,
   },
 ];
+
+export const getClubSubscriptionPlanLabel = (
+  sub?: Partial<ClubSubscription> | null
+): string => {
+  if (!sub) return 'Lessa Club';
+
+  const summary = (sub.planSummaryLabel || '').trim();
+  const members = Array.isArray(sub.members) ? sub.members : [];
+  const titular = members.find((m) => m.role === 'TITULAR') || members[0];
+  const memberCycleLabel = (titular?.planCycleLabel || '').trim();
+  const memberModalityName = (titular?.modalityName || '').trim();
+
+  let baseLabel = '';
+  if (summary && summary !== '---') {
+    baseLabel = summary;
+  } else if (memberCycleLabel) {
+    baseLabel = memberCycleLabel;
+  } else if (memberModalityName) {
+    baseLabel = memberModalityName;
+  } else {
+    baseLabel = 'Lessa Club';
+  }
+
+  const normalized = baseLabel.toLowerCase();
+  const hasCycleMention =
+    normalized.includes('mensal') ||
+    normalized.includes('anual') ||
+    normalized.includes('vitalicio') ||
+    normalized.includes('vitalício') ||
+    normalized.includes('publicidade');
+
+  if (!hasCycleMention && sub.paymentMethod !== 'COURTESY') {
+    if (sub.billingCycle === 'ANNUAL') {
+      baseLabel = `${baseLabel} (Anual)`;
+    } else if (sub.billingCycle === 'MONTHLY') {
+      baseLabel = `${baseLabel} (Mensal)`;
+    }
+  }
+
+  return baseLabel;
+};
 
 export const renderClubMessageTemplate = (
   template: string,
@@ -313,9 +373,11 @@ export const renderClubMessageTemplate = (
   const login = (sub.holderEmail || sub.holderCpf || '').trim() || 'Seu e-mail ou CPF';
   const senha = getBirthDatePassword(sub.holderBirthDate);
   const cartao = (sub.subscriptionCode || '').trim() || '---';
+  const plano = getClubSubscriptionPlanLabel(sub);
 
   return template
     .replace(/\{NOME\}/g, nome)
+    .replace(/\{PLANO\}/g, plano)
     .replace(/\{LOGIN\}/g, login)
     .replace(/\{SENHA\}/g, senha)
     .replace(/\{CARTAO\}/g, cartao);
@@ -11707,7 +11769,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Texto do Modelo (as tags {'{NOME}'}, {'{LOGIN}'}, {'{SENHA}'}, {'{CARTAO}'} serão substituídas por sócio):</span>
+                    <span>Texto do Modelo (as tags {'{NOME}'}, {'{PLANO}'}, {'{LOGIN}'}, {'{SENHA}'}, {'{CARTAO}'} serão substituídas por sócio):</span>
                     <span>{smsTemplate.length} caracteres</span>
                   </div>
                   <Textarea
