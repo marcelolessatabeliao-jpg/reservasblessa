@@ -373,6 +373,23 @@ export const getClubSubscriptionPlanLabel = (
     baseLabel = 'Lessa Club';
   }
 
+  // Remove quantidades de pessoas/integrantes e valores do texto do plano para a mensagem
+  baseLabel = baseLabel
+    .replace(/\(\s*\d+\s*pessoas?\s*\)/gi, '')
+    .replace(/[-•–—]\s*\d+\s*pessoas?\b/gi, '')
+    .replace(/\b\d+\s*pessoas?\b/gi, '')
+    .replace(/\(\s*\d+\s*titular(?:es)?\s*\+\s*\d+\s*dependentes?\s*\)/gi, '')
+    .replace(/\b\d+\s*x\s+/gi, '')
+    .replace(/\s*[-•–—]\s*R\$\s*[\d.,]+/gi, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s*[:•–—-]\s*$/g, '')
+    .trim();
+
+  if (!baseLabel || baseLabel === '---') {
+    baseLabel = memberModalityName || 'Lessa Club';
+  }
+
   const normalized = baseLabel.toLowerCase();
   const hasCycleMention =
     normalized.includes('mensal') ||

@@ -6601,6 +6601,20 @@ export const getMemberAccessMessage = (sub: ClubSubscription): { message: string
   if (!planLabel || planLabel === '---') {
     planLabel = (titular?.planCycleLabel || titular?.modalityName || 'Lessa Club').trim();
   }
+  planLabel = planLabel
+    .replace(/\(\s*\d+\s*pessoas?\s*\)/gi, '')
+    .replace(/[-•–—]\s*\d+\s*pessoas?\b/gi, '')
+    .replace(/\b\d+\s*pessoas?\b/gi, '')
+    .replace(/\(\s*\d+\s*titular(?:es)?\s*\+\s*\d+\s*dependentes?\s*\)/gi, '')
+    .replace(/\b\d+\s*x\s+/gi, '')
+    .replace(/\s*[-•–—]\s*R\$\s*[\d.,]+/gi, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s*[:•–—-]\s*$/g, '')
+    .trim();
+  if (!planLabel || planLabel === '---') {
+    planLabel = (titular?.modalityName || 'Lessa Club').trim();
+  }
   const normalizedPlan = planLabel.toLowerCase();
   if (
     !normalizedPlan.includes('mensal') &&
