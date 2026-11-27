@@ -352,7 +352,7 @@ Agora você pode:
 
 📢 *ATENÇÃO PARA MANTER SEU PLANO ATIVO:*
 
-Para manter ativo o seu plano *{PLANO}* (Cartão #{CARTAO}), é necessária a *renovação do anexo da foto do carro adesivado* (pegando *toda a traseira do carro, o vidro com o adesivo e a placa legível*) e o *preenchimento dos dados do veículo* (*placa, cor do veículo e modelo*) no seu cadastro para conferência.
+Para manter ativo o seu plano *{PLANO}*, é necessária a *renovação do anexo da foto do carro adesivado* (pegando *toda a traseira do carro, o vidro com o adesivo e a placa legível*) e o *preenchimento dos dados do veículo* (*placa, cor do veículo e modelo*) no seu cadastro para conferência.
 
 Por favor, acesse o Portal do Sócio na aba *"Documentos"* (ou *"Meus Dados"*) para preencher os dados do carro e enviar a foto atualizada:
 
