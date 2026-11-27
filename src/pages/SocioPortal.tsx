@@ -1611,17 +1611,17 @@ const SocioPortal: React.FC = () => {
           /* Logged-in Member Dashboard */
           <div className="space-y-6">
             {/* Summary Header */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-1">
+            <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="w-full md:w-auto min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
                   <Badge
-                    className={
+                    className={`whitespace-normal text-left leading-snug py-1 ${
                       isSubscriptionActive
                         ? 'bg-emerald-600 text-white font-black'
                         : isPendingTransfer
                         ? 'bg-amber-600 text-white font-black'
                         : 'bg-rose-600 text-white font-black'
-                    }
+                    }`}
                   >
                     {isSubscriptionActive
                       ? '● STATUS ATUAL: PLANO ATIVO (LIBERADO)'
@@ -1643,7 +1643,7 @@ const SocioPortal: React.FC = () => {
                     Ciclo: {subscription.billingCycle === 'ANNUAL' ? 'Anual' : 'Mensal Recorrente'}
                   </span>
                   <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1.5 shadow-xs">
-                    <Calendar className="w-3.5 h-3.5 text-emerald-600 inline" />
+                    <Calendar className="w-3.5 h-3.5 text-emerald-600 inline shrink-0" />
                     Validade do Plano:{' '}
                     <strong className="text-emerald-950 font-black">
                       {subscription.endDate
@@ -1652,10 +1652,10 @@ const SocioPortal: React.FC = () => {
                     </strong>
                   </span>
                 </div>
-                <h1 className="text-2xl font-black text-slate-900">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 break-words">
                   Olá, {subscription.holderName}
                 </h1>
-                <p className="text-sm text-slate-600">
+                <p className="text-xs sm:text-sm text-slate-600">
                   {subscription.planSummaryLabel} •{' '}
                   <strong>
                     1 Titular + {Math.max(0, subscription.members.length - 1)} Dependente(s)
@@ -1663,8 +1663,8 @@ const SocioPortal: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-right">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-left sm:text-right">
                   <span className="text-[11px] uppercase font-bold text-slate-400 block">
                     {subscription.billingCycle === 'ANNUAL'
                       ? `Plano Anual (${formatCurrency(subscription.totalContractValue)})`
@@ -1678,7 +1678,7 @@ const SocioPortal: React.FC = () => {
                 <Button
                   variant="outline"
                   onClick={handlePrintContract}
-                  className="border-slate-300 font-bold"
+                  className="border-slate-300 font-bold w-full sm:w-auto h-11 sm:h-10"
                 >
                   <Printer className="w-4 h-4 mr-2" /> Imprimir Contrato
                 </Button>
@@ -1753,63 +1753,70 @@ const SocioPortal: React.FC = () => {
                 }}
                 className="space-y-6"
               >
-                <TabsList className="grid grid-cols-2 sm:grid-cols-7 w-full max-w-6xl bg-slate-200/80 p-1 rounded-2xl h-auto sm:h-12 gap-1">
+                <TabsList className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 w-full max-w-6xl bg-slate-200/80 p-1.5 rounded-2xl h-auto gap-1.5">
                   <TabsTrigger
                     value="carteirinhas"
-                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                    className="min-h-[44px] px-2.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 whitespace-normal text-center leading-tight data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-xs"
                   >
-                    <CreditCard className="w-4 h-4 mr-1.5" /> Carteirinhas ({(subscription.members || []).length})
+                    <CreditCard className="w-4 h-4 shrink-0" />
+                    <span>Carteirinhas ({(subscription.members || []).length})</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="meus-dados"
-                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                    className="min-h-[44px] px-2.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 whitespace-normal text-center leading-tight data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-xs"
                   >
-                    <User className="w-4 h-4 mr-1.5" /> Meus Dados
+                    <User className="w-4 h-4 shrink-0" />
+                    <span>Meus Dados</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="dependentes"
-                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                    className="min-h-[44px] px-2.5 py-2 rounded-xl font-bold text-xs flex flex-wrap items-center justify-center gap-1 whitespace-normal text-center leading-tight data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-xs"
                   >
-                    <Users className="w-4 h-4 mr-1.5" /> Dependentes
+                    <Users className="w-4 h-4 shrink-0" />
+                    <span>Dependentes</span>
                     {contractedDependentSlots.length > 0 && (
-                      <span className="ml-1 text-[11px] opacity-80">
+                      <span className="text-[11px] opacity-80">
                         ({filledDependentSlotsCount}/{contractedDependentSlots.length})
                       </span>
                     )}
                     {missingDependentSlotsCount > 0 && (
-                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950">
                         Faltam {missingDependentSlotsCount}
                       </span>
                     )}
                   </TabsTrigger>
                   <TabsTrigger
                     value="documentos"
-                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-amber-700"
+                    className="min-h-[44px] px-2.5 py-2 rounded-xl font-bold text-xs flex flex-wrap items-center justify-center gap-1 whitespace-normal text-center leading-tight data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-xs"
                   >
-                    <FileCheck className="w-4 h-4 mr-1.5" /> Documentos
+                    <FileCheck className="w-4 h-4 shrink-0" />
+                    <span>Documentos</span>
                     {subscription.members.some((m) => isMemberBlockedForMissingDoc(m, subscription)) && (
-                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white">
                         Pendente
                       </span>
                     )}
                   </TabsTrigger>
                   <TabsTrigger
                     value="faturas"
-                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                    className="min-h-[44px] px-2.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 whitespace-normal text-center leading-tight data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-xs"
                   >
-                    <Receipt className="w-4 h-4 mr-1.5" /> Mensalidades ({planOnlyInvoices.length})
+                    <Receipt className="w-4 h-4 shrink-0" />
+                    <span>Mensalidades ({planOnlyInvoices.length})</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="contrato"
-                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                    className="min-h-[44px] px-2.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 whitespace-normal text-center leading-tight data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-xs"
                   >
-                    <FileText className="w-4 h-4 mr-1.5" /> Meu Contrato
+                    <FileText className="w-4 h-4 shrink-0" />
+                    <span>Meu Contrato</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="vantagens"
-                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-amber-700"
+                    className="col-span-2 md:col-span-2 lg:col-span-1 min-h-[44px] px-2.5 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 whitespace-normal text-center leading-tight data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-xs"
                   >
-                    <Sparkles className="w-4 h-4 mr-1.5 text-amber-500" /> Vantagens & Dúvidas
+                    <Sparkles className="w-4 h-4 shrink-0 text-amber-500" />
+                    <span>Vantagens & Dúvidas</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -1946,9 +1953,7 @@ const SocioPortal: React.FC = () => {
                         </Button>
                       )}
 
-                      {(subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
-                        subscription.inactivityReason === 'FALTA_DOCUMENTOS' ||
-                        subscription.members.some((m) => isMemberBlockedForMissingDoc(m, subscription))) && (
+                      {subscription.members.some((m) => isMemberBlockedForMissingDoc(m, subscription)) && (
                         <Button
                           type="button"
                           size="sm"
@@ -1976,7 +1981,7 @@ const SocioPortal: React.FC = () => {
 
                 {/* SEÇÃO 1: CARTEIRINHA DO TITULAR PRINCIPAL */}
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between px-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-1">
                     <h3 className="text-base sm:text-lg font-black text-emerald-950 uppercase tracking-tight">
                       1. Carteirinha do Titular Responsável
                     </h3>
@@ -3371,17 +3376,13 @@ const SocioPortal: React.FC = () => {
                                   const isDocApproved =
                                     hasUploadedDoc &&
                                     (member.documentVerified === true || member.documentStatus === 'APROVADO');
-                                  const hasExplicitDocPending =
-                                    subscription.inactivityReason === 'FALTA_DOCUMENTOS' ||
-                                    subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
-                                    Boolean(subscription.inactivityReasons?.includes('FALTA_DOCUMENTOS')) ||
-                                    member.inactivityReason === 'FALTA_DOCUMENTOS' ||
-                                    Boolean(member.inactivityReasons?.includes('FALTA_DOCUMENTOS'));
 
-                                  if (!docRule.requiresDocument && !hasExplicitDocPending) {
+                                  // Planos integrais (ex: Lessa Club) NUNCA exigem comprovante documental,
+                                  // mesmo que outro integrante do contrato (ex: Estudante) esteja com pendência.
+                                  if (!docRule.requiresDocument) {
                                     return (
-                                      <Badge className="bg-slate-500 text-white text-[10px] font-bold">
-                                        NÃO EXIGE DOCUMENTO
+                                      <Badge className="bg-emerald-700 text-white text-[10px] font-bold">
+                                        ✓ NÃO EXIGE DOCUMENTO
                                       </Badge>
                                     );
                                   }
@@ -3418,38 +3419,46 @@ const SocioPortal: React.FC = () => {
                               </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                              <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-black cursor-pointer shadow-sm">
-                                <Camera className="w-3.5 h-3.5" />
-                                Câmera
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  capture="environment"
-                                  className="hidden"
-                                  disabled={uploadingDocMemberId === member.id}
-                                  onChange={(e) => {
-                                    const f = e.target.files?.[0];
-                                    if (f) handleUploadMemberDocument(member, f);
-                                  }}
-                                />
-                              </label>
-                              <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-900 text-xs font-black cursor-pointer shadow-sm">
-                                <Upload className="w-3.5 h-3.5" />
-                                {uploadingDocMemberId === member.id ? 'Importando...' : 'Importar Arquivo (Foto / PDF)'}
-                                <input
-                                  type="file"
-                                  accept="image/*,.pdf"
-                                  className="hidden"
-                                  disabled={uploadingDocMemberId === member.id}
-                                  onChange={(e) => {
-                                    const f = e.target.files?.[0];
-                                    if (f) handleUploadMemberDocument(member, f);
-                                  }}
-                                />
-                              </label>
-                            </div>
+                            {docRule.requiresDocument && (
+                              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                                <label className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-black cursor-pointer shadow-sm flex-1 sm:flex-none">
+                                  <Camera className="w-3.5 h-3.5 shrink-0" />
+                                  Câmera
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className="hidden"
+                                    disabled={uploadingDocMemberId === member.id}
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (f) handleUploadMemberDocument(member, f);
+                                    }}
+                                  />
+                                </label>
+                                <label className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-900 text-xs font-black cursor-pointer shadow-sm flex-1 sm:flex-none">
+                                  <Upload className="w-3.5 h-3.5 shrink-0" />
+                                  {uploadingDocMemberId === member.id ? 'Importando...' : 'Importar Arquivo'}
+                                  <input
+                                    type="file"
+                                    accept="image/*,.pdf"
+                                    className="hidden"
+                                    disabled={uploadingDocMemberId === member.id}
+                                    onChange={(e) => {
+                                      const f = e.target.files?.[0];
+                                      if (f) handleUploadMemberDocument(member, f);
+                                    }}
+                                  />
+                                </label>
+                              </div>
+                            )}
                           </div>
+
+                          {!docRule.requiresDocument && (
+                            <div className="bg-emerald-50/70 border border-emerald-200 text-emerald-950 text-xs rounded-xl p-3 font-medium">
+                              <strong>✓ Plano Integral ({member.modalityName}):</strong> Esta modalidade não exige envio de comprovante documental. Basta manter a foto 3x4 atualizada na aba <strong>Carteirinhas</strong>.
+                            </div>
+                          )}
 
                           {docRule.requiresDocument && (
                             <div className="bg-white rounded-xl p-3 border border-amber-200 text-xs text-slate-800 space-y-1">
@@ -3467,7 +3476,7 @@ const SocioPortal: React.FC = () => {
                             </div>
                           )}
 
-                          {member.documentRejectionReason && !member.documentVerified && member.documentStatus !== 'APROVADO' && (
+                          {docRule.requiresDocument && member.documentRejectionReason && !member.documentVerified && member.documentStatus !== 'APROVADO' && (
                             <div className="bg-rose-100 border border-rose-300 text-rose-950 text-xs rounded-xl p-3 font-semibold space-y-1">
                               <div className="font-black text-rose-900 flex items-center gap-1.5 uppercase">
                                 ⚠️ Motivo da Recusa pela Administração:
@@ -3479,19 +3488,19 @@ const SocioPortal: React.FC = () => {
                             </div>
                           )}
 
-                          {hasDoc && allDocs.length > 0 && !member.documentVerified && member.documentStatus !== 'APROVADO' && !member.documentRejectionReason && (
+                          {docRule.requiresDocument && hasDoc && allDocs.length > 0 && !member.documentVerified && member.documentStatus !== 'APROVADO' && !member.documentRejectionReason && (
                             <div className="bg-amber-50 border border-amber-300 text-amber-950 text-xs rounded-xl p-3 font-medium">
                               <strong>⏳ Documentação em Análise:</strong> Seu comprovante foi recebido e está aguardando validação pela administração do clube para ativação final da carteirinha.
                             </div>
                           )}
 
-                          {hasDoc && allDocs.length > 0 && (member.documentVerified || member.documentStatus === 'APROVADO') && (
+                          {docRule.requiresDocument && hasDoc && allDocs.length > 0 && (member.documentVerified || member.documentStatus === 'APROVADO') && (
                             <div className="bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs rounded-xl p-3 font-medium">
                               <strong>✓ Documentação Aprovada:</strong> O comprovante deste integrante foi verificado e aprovado pela administração.
                             </div>
                           )}
 
-                          {(!hasDoc || allDocs.length === 0) && (docRule.requiresDocument || subscription.inactivityReason === 'FALTA_DOCUMENTOS' || subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' || Boolean(subscription.inactivityReasons?.includes('FALTA_DOCUMENTOS'))) && (
+                          {docRule.requiresDocument && (!hasDoc || allDocs.length === 0) && (
                             <div className="bg-rose-50 border border-rose-300 text-rose-950 text-xs rounded-xl p-3 font-medium">
                               <strong>⚠️ Documentação Pendente:</strong> Ainda não há nenhum documento anexado para este integrante. Utilize os botões <strong>Câmera</strong> ou <strong>Importar Arquivo</strong> acima para enviar a documentação para conferência da administração.
                             </div>
@@ -4197,10 +4206,10 @@ const SocioPortal: React.FC = () => {
 
               {/* TAB 3: CONTRATO */}
               <TabsContent value="contrato">
-                <div className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 shadow-sm space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-6 md:p-8 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                     <div>
-                      <h3 className="text-lg font-black text-slate-900">
+                      <h3 className="text-base sm:text-lg font-black text-slate-900">
                         Contrato Oficial de Adesão Vinculado ao Perfil
                       </h3>
                       <p className="text-xs text-slate-500">
@@ -4210,14 +4219,14 @@ const SocioPortal: React.FC = () => {
                     </div>
                     <Button
                       onClick={handlePrintContract}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold w-full sm:w-auto"
                     >
                       <Printer className="w-4 h-4 mr-2" /> Imprimir / Salvar PDF
                     </Button>
                   </div>
 
                   <div
-                    className="prose prose-sm max-w-none bg-slate-50 p-6 rounded-2xl border border-slate-200"
+                    className="prose prose-sm max-w-none bg-slate-50 p-3 sm:p-6 rounded-2xl border border-slate-200 overflow-x-auto"
                     dangerouslySetInnerHTML={{
                       __html: state
                         ? renderSubscriptionContractHtml(subscription, state.contractTemplates)

@@ -215,11 +215,15 @@ export const getPlanDocumentRule = (
 
   // Plano Lessa Club padrão (pagante integral) não exige documento comprobatório,
   // inclusive para dependentes pagantes integrais (mesmo se modalityCode legado estiver incorreto).
-  const isPlainFullPriceLessaClub =
-    name.includes('lessa club') &&
-    !/publicidade|family|permuta|kids|estudante|student|professor|servidor|doador|pcd|tea|inclus|vital[ií]cio|60\+|idoso|c[oô]njuge|espos|marido/i.test(
+  const hasSpecialDiscountKeyword =
+    /publicidade|family|permuta|kids|estudante|student|professor|servidor|doador|pcd|tea|inclus|vital[ií]cio|60\+|idoso|c[oô]njuge|espos|marido/i.test(
       name
     );
+  const isPlainAdultCode =
+    code === 'ADULTO' || code === 'LESSA_CLUB' || code.startsWith('LESSA_CLUB_');
+  const isPlainFullPriceLessaClub =
+    !hasSpecialDiscountKeyword &&
+    (name.includes('lessa club') || name.includes('integral') || name.includes('adulto') || isPlainAdultCode);
 
   if (isPlainFullPriceLessaClub) {
     return {
@@ -2368,10 +2372,18 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
 
   return {
     ...state,
-    contractTemplates: (state.contractTemplates || []).map((ct) => ({
-      ...ct,
-      contentHtml: ct.contentHtml && ct.contentHtml.length > 500 ? ct.contentHtml.slice(0, 500) + '...' : ct.contentHtml,
-    })),
+    contractTemplates: (state.contractTemplates && state.contractTemplates.length > 0
+      ? state.contractTemplates
+      : DEFAULT_CONTRACT_TEMPLATES
+    ).map((ct) => {
+      const html = (ct.contentHtml || '').trim();
+      const isTruncated = !html || html.length < 1500 || html.endsWith('...');
+      if (isTruncated) {
+        const official = DEFAULT_CONTRACT_TEMPLATES.find((d) => d.id === ct.id);
+        if (official) return { ...ct, contentHtml: official.contentHtml };
+      }
+      return ct;
+    }),
     subscriptions: compactSubs,
   };
 };
@@ -5821,9 +5833,14 @@ export const renderSubscriptionContractHtml = (
   subscription: ClubSubscription,
   templates: ClubContractTemplate[] = DEFAULT_CONTRACT_TEMPLATES
 ): string => {
-  const tpl =
-    templates.find((t) => t.id === subscription.contractType) ||
+  const candidateTpl = templates.find((t) => t.id === subscription.contractType);
+  const candidateHtml = (candidateTpl?.contentHtml || '').trim();
+  const isCandidateTruncated =
+    !candidateHtml || candidateHtml.length < 1500 || candidateHtml.endsWith('...');
+  const officialFallback =
+    DEFAULT_CONTRACT_TEMPLATES.find((t) => t.id === subscription.contractType) ||
     DEFAULT_CONTRACT_TEMPLATES[0];
+  const tpl = !isCandidateTruncated && candidateTpl ? candidateTpl : officialFallback;
 
   const membersRows = subscription.members
     .map(
@@ -5843,7 +5860,8 @@ export const renderSubscriptionContractHtml = (
   const familyTableHtml = `
     <div style="margin: 16px 0;">
       <strong style="color: #005200; font-size: 12px; text-transform: uppercase;">INTEGRANTES E CARTEIRINHAS VINCULADAS A ESTE CONTRATO (${subscription.members.length}):</strong>
-      <table style="width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px;">
+      <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 8px;">
+      <table style="width: 100%; min-width: 560px; border-collapse: collapse; font-size: 11px;">
         <thead>
           <tr style="background: #f1f5f9; text-align: left;">
             <th style="padding: 6px 8px; border: 1px solid #cbd5e1;">#</th>
@@ -5859,6 +5877,7 @@ export const renderSubscriptionContractHtml = (
           ${membersRows}
         </tbody>
       </table>
+      </div>
     </div>
   `;
 
@@ -6006,10 +6025,12 @@ export const renderSiteTermsHtml = (
   fallbackSiteTermsText?: string
 ): string => {
   const defaultTermsTpl = DEFAULT_CONTRACT_TEMPLATES.find((t) => t.id === 'TERMOS_SITE');
-  const rawTplHtml =
-    templates.find((t) => t.id === 'TERMOS_SITE')?.contentHtml ||
-    defaultTermsTpl?.contentHtml ||
-    '';
+  const candidateTermsHtml = (templates.find((t) => t.id === 'TERMOS_SITE')?.contentHtml || '').trim();
+  const isTermsTruncated =
+    !candidateTermsHtml || candidateTermsHtml.length < 1500 || candidateTermsHtml.endsWith('...');
+  const rawTplHtml = !isTermsTruncated
+    ? candidateTermsHtml
+    : defaultTermsTpl?.contentHtml || '';
 
   if (rawTplHtml.trim()) {
     return rawTplHtml
