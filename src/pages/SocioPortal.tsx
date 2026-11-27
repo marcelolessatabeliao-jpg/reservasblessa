@@ -4356,7 +4356,8 @@ const SocioPortal: React.FC = () => {
                       </h3>
                       <p className="text-xs text-slate-500">
                         Aceito digitalmente em{' '}
-                        {new Date(subscription.contractSignedAt || subscription.createdAt).toLocaleString('pt-BR')}
+                        {subscription.acceptanceLog?.dateDisplay ||
+                          new Date(subscription.contractSignedAt || subscription.createdAt).toLocaleString('pt-BR')}
                       </p>
                     </div>
                     <Button

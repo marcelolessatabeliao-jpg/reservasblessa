@@ -5623,7 +5623,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     if (!state) return;
     const termsHtml = renderSiteTermsHtml(sub, state.contractTemplates, siteTermsText);
     const contractHtml = renderSubscriptionContractHtml(sub, state.contractTemplates);
-    const signedAtStr = new Date(sub.contractSignedAt || sub.createdAt).toLocaleString('pt-BR');
+    const signedAtStr =
+      sub.acceptanceLog?.dateDisplay ||
+      new Date(sub.contractSignedAt || sub.createdAt).toLocaleString('pt-BR');
+    const signedIpStr = sub.acceptanceLog?.ip || sub.contractSignatureIp || '';
 
     const fullBodyHtml = `
       <h2 style="color:#005200; border-bottom:2px solid #005200; padding-bottom:8px; font-size:18px; margin-top:0;">
@@ -5632,7 +5635,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:14px; border-radius:8px; margin-bottom:16px; font-size:12px;">
         <strong>CNPJ:</strong> 46.891.134/0001-40 • <strong>Endereço:</strong> Via Araras, Setor 09, Ariquemes/RO • <strong>WhatsApp:</strong> (69) 99262-6140<br />
         <strong>Associado Titular:</strong> ${sub.holderName} • <strong>CPF:</strong> ${sub.holderCpf} • <strong>Telefone:</strong> ${sub.holderPhone || '—'} • <strong>Cartão:</strong> #${sub.subscriptionCode}<br />
-        <strong>Plano Contratado:</strong> ${sub.planSummaryLabel} • <strong>Data da Adesão:</strong> ${formatDateBR(sub.startDate)} • <strong>Status do Aceite:</strong> ${sub.contractAccepted ? `ACEITO E ASSINADO ELETRONICAMENTE EM ${signedAtStr}` : 'PENDENTE DE ASSINATURA DIGITAL'}
+        <strong>Plano Contratado:</strong> ${sub.planSummaryLabel} • <strong>Data da Adesão:</strong> ${formatDateBR(sub.startDate)} • <strong>Status do Aceite:</strong> ${sub.contractAccepted ? `ACEITO E ASSINADO ELETRONICAMENTE EM ${signedAtStr}${signedIpStr ? ` (IP: ${signedIpStr})` : ''}` : 'PENDENTE DE ASSINATURA DIGITAL'}
       </div>
       <div style="background:#ecfdf5; border:1.5px solid #86efac; padding:14px; border-radius:8px; margin-bottom:20px; font-size:12px; color:#065f46; line-height:1.6;">
         <strong>VALIDADE JURÍDICA DO ACEITE ELETRÔNICO E ASSINATURA DIGITAL (MP Nº 2.200-2/2001, ART. 10, § 2º • LEI Nº 14.063/2020 • CÓDIGO CIVIL ARTS. 104, 107, 219 E 422):</strong><br />
@@ -19829,6 +19832,71 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <Printer className="w-4 h-4 mr-1.5" /> Imprimir Contrato Assinado
                     </Button>
                   </div>
+                  {/* PROVA JURÍDICA: LOG OFICIAL DE CADASTRO E ACEITE DOS TERMOS */}
+                  {(selectedSubForDetail.acceptanceLog || (selectedSubForDetail.auditLogs && selectedSubForDetail.auditLogs.length > 0)) && (
+                    <div className="rounded-xl border-2 border-emerald-300 bg-emerald-50/70 p-4 space-y-2.5 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-black text-emerald-950 uppercase tracking-wide flex items-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                          Log Oficial de Cadastro & Aceite dos Termos (Prova Jurídica)
+                        </span>
+                        <Badge className="bg-emerald-700 text-white text-[10px] font-bold">
+                          {selectedSubForDetail.acceptanceLog?.source === 'LABCARD_LOG'
+                            ? 'LOG LABCARD VERIFICADO'
+                            : selectedSubForDetail.acceptanceLog?.source === 'ASAAS_FIRST_CHARGE'
+                            ? '1ª COBRANÇA REGISTRADA'
+                            : 'LOG PORTAL / SITE'}
+                        </Badge>
+                      </div>
+                      {selectedSubForDetail.acceptanceLog && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                          <div className="bg-white rounded-lg border border-emerald-200 p-2">
+                            <span className="text-[10px] font-bold uppercase text-slate-500 block">Data/Hora do Log</span>
+                            <span className="font-mono font-black text-emerald-900">
+                              {selectedSubForDetail.acceptanceLog.dateDisplay}
+                            </span>
+                          </div>
+                          <div className="bg-white rounded-lg border border-emerald-200 p-2">
+                            <span className="text-[10px] font-bold uppercase text-slate-500 block">Evento</span>
+                            <span className="font-bold text-slate-900">
+                              {selectedSubForDetail.acceptanceLog.event}
+                            </span>
+                          </div>
+                          <div className="bg-white rounded-lg border border-emerald-200 p-2">
+                            <span className="text-[10px] font-bold uppercase text-slate-500 block">IP de Acesso</span>
+                            <span className="font-mono font-bold text-slate-800 break-all">
+                              {selectedSubForDetail.acceptanceLog.ip || 'Não registrado'}
+                            </span>
+                          </div>
+                          <div className="bg-white rounded-lg border border-emerald-200 p-2">
+                            <span className="text-[10px] font-bold uppercase text-slate-500 block">Responsável</span>
+                            <span className="font-bold text-slate-800">
+                              {selectedSubForDetail.acceptanceLog.responsible || 'Autoatendimento / Sistema'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {selectedSubForDetail.auditLogs && selectedSubForDetail.auditLogs.length > 1 && (
+                        <div className="pt-1">
+                          <span className="text-[10px] font-black uppercase text-emerald-900 block mb-1">
+                            Linha do Tempo ({selectedSubForDetail.auditLogs.length} marcos registrados):
+                          </span>
+                          <div className="max-h-32 overflow-y-auto bg-white rounded-lg border border-emerald-200 divide-y divide-slate-100">
+                            {selectedSubForDetail.auditLogs.map((lg, li) => (
+                              <div key={li} className="px-2.5 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                                <span>
+                                  <strong className="font-mono text-emerald-800">{lg.dateDisplay}</strong> — <strong>{lg.event}</strong>
+                                  {lg.responsible ? <span className="text-slate-500"> ({lg.responsible})</span> : null}
+                                </span>
+                                {lg.ip && <span className="font-mono text-[10px] text-slate-500">IP: {lg.ip}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div
                     className="p-6 rounded-xl border border-slate-200 bg-slate-50 max-h-96 overflow-y-auto text-xs prose max-w-none"
                     dangerouslySetInnerHTML={{

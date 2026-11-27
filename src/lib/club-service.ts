@@ -5927,6 +5927,62 @@ export const renderSubscriptionContractHtml = (
           'Aceite digital com assinatura e validação eletrônica registrada nos servidores',
         ];
 
+  const acceptanceDateDisplay =
+    subscription.acceptanceLog?.dateDisplay ||
+    new Date(subscription.contractSignedAt || subscription.createdAt).toLocaleString('pt-BR');
+  const acceptanceIpDisplay =
+    subscription.acceptanceLog?.ip ||
+    subscription.contractSignatureIp ||
+    'Assinatura Eletrônica Registrada';
+  const acceptanceEventLine = subscription.acceptanceLog
+    ? `<div style="margin-top: 4px; font-size: 10px; color: #334155;">
+        <strong>Evento Registrado:</strong> ${subscription.acceptanceLog.event}${
+        subscription.acceptanceLog.responsible
+          ? ` &nbsp;|&nbsp; <strong>Responsável:</strong> ${subscription.acceptanceLog.responsible}`
+          : ''
+      }${
+        subscription.acceptanceLog.url
+          ? ` &nbsp;|&nbsp; <strong>Origem:</strong> <span style="font-family: monospace; font-size: 9px;">${subscription.acceptanceLog.url}</span>`
+          : ''
+      }
+      </div>`
+    : '';
+
+  const auditLogsTableHtml =
+    subscription.auditLogs && subscription.auditLogs.length > 0
+      ? `
+      <div style="margin-top: 12px; border-top: 1px solid #cbd5e1; padding-top: 8px;">
+        <div style="font-weight: bold; color: #005200; font-size: 10.5px; text-transform: uppercase; margin-bottom: 6px;">
+          🛡️ Registro Cronológico de Auditoria / Log do Cadastro (${subscription.auditLogs.length} marcos)
+        </div>
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 10px; background: #ffffff;">
+            <thead>
+              <tr style="background: #f1f5f9; text-align: left;">
+                <th style="padding: 4px 6px; border: 1px solid #cbd5e1;">Data/Hora</th>
+                <th style="padding: 4px 6px; border: 1px solid #cbd5e1;">Evento</th>
+                <th style="padding: 4px 6px; border: 1px solid #cbd5e1;">Responsável</th>
+                <th style="padding: 4px 6px; border: 1px solid #cbd5e1;">IP de Acesso</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${subscription.auditLogs
+                .map(
+                  (lg) => `
+                <tr>
+                  <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-family: monospace; white-space: nowrap;">${lg.dateDisplay}</td>
+                  <td style="padding: 4px 6px; border: 1px solid #cbd5e1;"><strong>${lg.event}</strong></td>
+                  <td style="padding: 4px 6px; border: 1px solid #cbd5e1;">${lg.responsible || '-'}</td>
+                  <td style="padding: 4px 6px; border: 1px solid #cbd5e1; font-family: monospace;">${lg.ip || '-'}</td>
+                </tr>`
+                )
+                .join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`
+      : '';
+
   const termsAcceptedHtml = `
     <div style="background: #f8fafc; border: 1.5px solid #bbf7d0; border-radius: 8px; padding: 14px 18px; margin: 20px 0; font-size: 11px;">
       <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px;">
@@ -5948,10 +6004,12 @@ export const renderSubscriptionContractHtml = (
         O aceite eletrônico manifestado e validado pelo próprio titular neste sistema constitui <strong>assinatura eletrônica legalmente válida, autêntica e vinculante</strong>, produzindo os exatos mesmos efeitos jurídicos e probatórios de uma <strong>assinatura presencial em documento físico</strong>.
       </div>
       <div style="margin-top: 10px; font-size: 10px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
-        <strong>Data/Hora do Aceite Digital:</strong> ${new Date(subscription.contractSignedAt || subscription.createdAt).toLocaleString('pt-BR')} &nbsp;|&nbsp; 
-        <strong>IP / Protocolo:</strong> ${subscription.contractSignatureIp || '187.56.24.112 (Assinatura Eletrônica Registrada)'} &nbsp;|&nbsp; 
+        <strong>Data/Hora do Aceite / Registro:</strong> ${acceptanceDateDisplay} &nbsp;|&nbsp; 
+        <strong>IP / Protocolo:</strong> ${acceptanceIpDisplay} &nbsp;|&nbsp; 
         <strong>Termo Nº:</strong> ${subscription.subscriptionCode}
       </div>
+      ${acceptanceEventLine}
+      ${auditLogsTableHtml}
     </div>
   `;
 

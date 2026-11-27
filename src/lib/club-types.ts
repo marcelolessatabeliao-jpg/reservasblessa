@@ -179,6 +179,17 @@ export interface ClubTrashItem {
   originalData: any;
 }
 
+export interface ClubAuditLogEntry {
+  event: string;
+  dateIso: string;
+  dateDisplay: string;
+  ip?: string;
+  responsible?: string;
+  url?: string;
+  plan?: string;
+  source: 'LABCARD_LOG' | 'SITE_PORTAL' | 'ASAAS_FIRST_CHARGE';
+}
+
 export interface ClubSubscription {
   id: string;
   subscriptionCode: string;
@@ -245,6 +256,10 @@ export interface ClubSubscription {
   contractSignatureIp?: string;
   contractContentHtml?: string;
   contractAcceptedTerms?: string[];
+  /** Log oficial principal de cadastro / aceite dos termos de uso (prova documental para cobrança) */
+  acceptanceLog?: ClubAuditLogEntry;
+  /** Histórico cronológico dos principais logs de auditoria do Labcard / Portal */
+  auditLogs?: ClubAuditLogEntry[];
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   validityLabel?: string; // Ex: 10/2027
